@@ -353,6 +353,8 @@ let overrideCabal = pkg: f: if pkg == null then null else haskellLib.overrideCab
         reflex-aeson-orphans = self.callPackage (hackGet ./reflex-aeson-orphans) {};
         haven = doJailbreak (self.callHackage "haven" "0.2.0.0" {});
 
+        #src = applyPatch ./ghcjs-prefer-package-modules-8.2.2.patch ((if useFastWeak then applyPatch ./fast-weak.patch else id) (hackGet ./ghcjs));
+
         inherit (jsaddlePkgs) jsaddle-clib jsaddle-wkwebview jsaddle-webkit2gtk jsaddle-webkitgtk;
         jsaddle = doJailbreak jsaddlePkgs.jsaddle;
         jsaddle-warp = dontCheck jsaddlePkgs.jsaddle-warp;
