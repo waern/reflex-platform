@@ -1,0 +1,76 @@
+diff --git a/ghc/compiler/main/DynFlags.hs b/ghc/compiler/main/DynFlags.hs
+index f5f5f00dd2..307d5030fa 100644
+--- a/ghc/compiler/main/DynFlags.hs
++++ b/ghc/compiler/main/DynFlags.hs
+@@ -524,6 +524,7 @@ data GeneralFlag
+    | Opt_OptimalApplicativeDo
+    | Opt_VersionMacros
+    | Opt_WholeArchiveHsLibs
++   | Opt_PreferPackageModules
+ 
+    -- PreInlining is on by default. The option is there just to see how
+    -- bad things get if you turn it off!
+@@ -833,6 +834,8 @@ data DynFlags = DynFlags {
+   packageEnv            :: Maybe FilePath,
+         -- ^ Filepath to the package environment file (if overriding default)
+ 
++  preferPackageModules :: Bool,
++
+   -- Package state
+   -- NB. do not modify this field, it is calculated by
+   -- Packages.initPackages
+@@ -1634,6 +1637,7 @@ defaultDynFlags mySettings =
+         trustFlags              = [],
+         packageEnv              = Nothing,
+         pkgDatabase             = Nothing,
++        preferPackageModules    = False,
+         -- This gets filled in with GHC.setSessionDynFlags
+         pkgState                = emptyPackageState,
+         ways                    = defaultWays mySettings,
+@@ -2842,6 +2846,7 @@ dynamic_flags_deps = [
+         (NoArg (setGeneralFlag Opt_Ticky_LNE))
+   , make_ord_flag defGhcFlag "ticky-dyn-thunk"
+         (NoArg (setGeneralFlag Opt_Ticky_Dyn_Thunk))
++  , make_ord_flag defGhcFlag "prefer-package-modules" (noArg (\d -> d {preferPackageModules = True}))
+         ------- recompilation checker --------------------------------------
+   , make_dep_flag defGhcFlag "recomp"
+         (NoArg $ unSetGeneralFlag Opt_ForceRecomp)
+@@ -3764,7 +3769,8 @@ fFlagsDeps = [
+   flagSpec "hide-source-paths"                Opt_HideSourcePaths,
+   flagSpec "show-hole-constraints"            Opt_ShowHoleConstraints,
+   flagSpec "show-loaded-modules"              Opt_ShowLoadedModules,
+-  flagSpec "whole-archive-hs-libs"            Opt_WholeArchiveHsLibs
++  flagSpec "whole-archive-hs-libs"            Opt_WholeArchiveHsLibs,
++  flagSpec "prefer-package-modules"           Opt_PreferPackageModules
+   ]
+ 
+ -- | These @-f\<blah\>@ flags can all be reversed with @-fno-\<blah\>@
+diff --git a/ghc/compiler/main/Finder.hs b/ghc/compiler/main/Finder.hs
+index d1bf1c8073..da2437f50c 100644
+--- a/ghc/compiler/main/Finder.hs
++++ b/ghc/compiler/main/Finder.hs
+@@ -105,15 +105,19 @@ findImportedModule hsc_env mod_name mb_pkg =
+   case mb_pkg of
+         Nothing                        -> unqual_import
+         Just pkg | pkg == fsLit "this" -> home_import -- "this" is special
+-                 | otherwise           -> pkg_import
++                 | otherwise           -> qual_pkg_import
+   where
+     home_import   = findHomeModule hsc_env mod_name
+ 
+-    pkg_import    = findExposedPackageModule hsc_env mod_name mb_pkg
++    qual_pkg_import = findExposedPackageModule hsc_env mod_name mb_pkg
+ 
+-    unqual_import = home_import
+-                    `orIfNotFound`
+-                    findExposedPackageModule hsc_env mod_name Nothing
++    unqual_pkg_import = findExposedPackageModule hsc_env mod_name Nothing
++
++    unqual_import
++      | preferPkgMods = unqual_pkg_import `orIfNotFound` home_import
++      | otherwise = home_import `orIfNotFound` unqual_pkg_import
++
++    preferPkgMods = preferPackageModules (hsc_dflags hsc_env)
+ 
+ -- | Locate a plugin module requested by the user, for a compiler
+ -- plugin.  This consults the same set of exposed packages as
