@@ -1,0 +1,66 @@
+diff --git a/compiler/parser/Lexer.x b/compiler/parser/Lexer.x
+index 3d6fa16..e2f4ebc 100644
+--- a/ghc/compiler/parser/Lexer.x
++++ b/ghc/compiler/parser/Lexer.x
+@@ -438,6 +438,11 @@ $tab          { warnTab }
+ }
+ 
+ <0> {
++  "." @varid / { ifExtension overloadedLabelsEnabled }
++               { skip_one_varid ITdotvarid }
++}
++
++<0> {
+   "(#" / { orExtensions unboxedTuplesEnabled unboxedSumsEnabled }
+          { token IToubxparen }
+   "#)" / { orExtensions unboxedTuplesEnabled unboxedSumsEnabled }
+@@ -702,8 +707,9 @@ data Token
+   | ITqvarsym (FastString,FastString)
+   | ITqconsym (FastString,FastString)
+ 
+-  | ITdupipvarid   FastString   -- GHC extension: implicit param: ?x
+-  | ITlabelvarid   FastString   -- Overloaded label: #x
++  | ITdupipvarid FastString   -- GHC extension: implicit param: ?x
++  | ITlabelvarid FastString   -- Overloaded label: #x
++  | ITdotvarid   FastString   -- Dot with overloaded label: .x
+ 
+   | ITchar     SourceText Char       -- Note [Literal source text] in BasicTypes
+   | ITstring   SourceText FastString -- Note [Literal source text] in BasicTypes
+diff --git a/compiler/parser/Parser.y b/compiler/parser/Parser.y
+index a1135d3..decb60e 100644
+--- a/ghc/compiler/parser/Parser.y
++++ b/ghc/compiler/parser/Parser.y
+@@ -496,6 +496,7 @@ are the most common patterns, rewritten as regular expressions for clarity:
+ 
+  IPDUPVARID     { L _ (ITdupipvarid   _) }              -- GHC extension
+  LABELVARID     { L _ (ITlabelvarid   _) }
++ DOTVARID       { L _ (ITdotvarid   _) }
+ 
+  CHAR           { L _ (ITchar   _ _) }
+  STRING         { L _ (ITstring _ _) }
+@@ -2494,6 +2495,7 @@ aexp2   :: { LHsExpr RdrName }
+         | qcon                          { sL1 $1 (HsVar   $! $1) }
+         | ipvar                         { sL1 $1 (HsIPVar $! unLoc $1) }
+         | overloaded_label              { sL1 $1 (HsOverLabel Nothing $! unLoc $1) }
++        | aexp2 dot_overloaded_label    { sLL $1 $> $ (HsApp (sL1 $2 (HsOverLabel Nothing $! unLoc $2)) $1) }
+         | literal                       { sL1 $1 (HsLit   $! unLoc $1) }
+ -- This will enable overloaded strings permanently.  Normally the renamer turns HsString
+ -- into HsOverLit when -foverloaded-strings is on.
+@@ -2954,6 +2956,9 @@ ipvar   :: { Located HsIPName }
+ overloaded_label :: { Located FastString }
+         : LABELVARID          { sL1 $1 (getLABELVARID $1) }
+ 
++dot_overloaded_label :: { Located FastString }
++        : DOTVARID            { sL1 $1 (getDOTVARID $1) }
++
+ -----------------------------------------------------------------------------
+ -- Warnings and deprecations
+ 
+@@ -3400,6 +3405,7 @@ getQVARSYM      (L _ (ITqvarsym  x)) = x
+ getQCONSYM      (L _ (ITqconsym  x)) = x
+ getIPDUPVARID   (L _ (ITdupipvarid   x)) = x
+ getLABELVARID   (L _ (ITlabelvarid   x)) = x
++getDOTVARID     (L _ (ITdotvarid     x)) = x
+ getCHAR         (L _ (ITchar   _ x)) = x
+ getSTRING       (L _ (ITstring _ x)) = x
+ getINTEGER      (L _ (ITinteger _ x)) = x

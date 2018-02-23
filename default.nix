@@ -285,7 +285,10 @@ let overrideCabal = pkg: f: if pkg == null then null else haskellLib.overrideCab
           buildInputs = [
             nixpkgs.gmp
           ];
-          src = applyPatch ./ghcjs-prefer-package-modules-8.2.2.patch ((if useFastWeak then applyPatch ./fast-weak.patch else id) (hackGet ./ghcjs));
+          src =
+            applyPatch ./ghcjs-dot-label-8.2.2.patch
+            (applyPatch ./ghcjs-prefer-package-modules-8.2.2.patch
+            ((if useFastWeak then applyPatch ./fast-weak.patch else id) (hackGet ./ghcjs)));
         } ''
           cp -r "$src" "$out"
           chmod -R +w "$out"
