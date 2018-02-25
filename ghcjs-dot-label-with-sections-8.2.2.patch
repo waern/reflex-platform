@@ -27,7 +27,7 @@ index 3d6fa16..e2f4ebc 100644
    | ITchar     SourceText Char       -- Note [Literal source text] in BasicTypes
    | ITstring   SourceText FastString -- Note [Literal source text] in BasicTypes
 diff --git a/compiler/parser/Parser.y b/compiler/parser/Parser.y
-index a1135d3..decb60e 100644
+index a1135d3..468d201 100644
 --- a/ghc/compiler/parser/Parser.y
 +++ b/ghc/compiler/parser/Parser.y
 @@ -496,6 +496,7 @@ are the most common patterns, rewritten as regular expressions for clarity:
@@ -46,7 +46,19 @@ index a1135d3..decb60e 100644
          | literal                       { sL1 $1 (HsLit   $! unLoc $1) }
  -- This will enable overloaded strings permanently.  Normally the renamer turns HsString
  -- into HsOverLit when -foverloaded-strings is on.
-@@ -2954,6 +2956,9 @@ ipvar   :: { Located HsIPName }
+@@ -2599,8 +2601,9 @@ texp :: { LHsExpr RdrName }
+         -- Then when converting expr to pattern we unravel it again
+         -- Meanwhile, the renamer checks that real sections appear
+         -- inside parens.
+-        | infixexp qop        { sLL $1 $> $ SectionL $1 $2 }
+-        | qopm infixexp       { sLL $1 $> $ SectionR $1 $2 }
++        | infixexp qop         { sLL $1 $> $ SectionL $1 $2 }
++        | qopm infixexp        { sLL $1 $> $ SectionR $1 $2 }
++        | dot_overloaded_label { sL1 $1 (HsOverLabel Nothing $! unLoc $1) }
+ 
+        -- View patterns get parenthesized above
+         | exp '->' texp   {% ams (sLL $1 $> $ EViewPat $1 $3) [mu AnnRarrow $2] }
+@@ -2954,6 +2957,9 @@ ipvar   :: { Located HsIPName }
  overloaded_label :: { Located FastString }
          : LABELVARID          { sL1 $1 (getLABELVARID $1) }
  
@@ -56,7 +68,7 @@ index a1135d3..decb60e 100644
  -----------------------------------------------------------------------------
  -- Warnings and deprecations
  
-@@ -3400,6 +3405,7 @@ getQVARSYM      (L _ (ITqvarsym  x)) = x
+@@ -3400,6 +3406,7 @@ getQVARSYM      (L _ (ITqvarsym  x)) = x
  getQCONSYM      (L _ (ITqconsym  x)) = x
  getIPDUPVARID   (L _ (ITdupipvarid   x)) = x
  getLABELVARID   (L _ (ITlabelvarid   x)) = x

@@ -286,7 +286,7 @@ let overrideCabal = pkg: f: if pkg == null then null else haskellLib.overrideCab
             nixpkgs.gmp
           ];
           src =
-            applyPatch ./ghcjs-dot-label-8.2.2.patch
+            applyPatch ./ghcjs-dot-label-with-sections-8.2.2.patch
             (applyPatch ./ghcjs-prefer-package-modules-8.2.2.patch
             ((if useFastWeak then applyPatch ./fast-weak.patch else id) (hackGet ./ghcjs)));
         } ''
