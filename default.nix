@@ -231,7 +231,10 @@ let overrideCabal = pkg: f: if pkg == null then null else haskellLib.overrideCab
             buildInputs = [
               nixpkgs.gmp
             ];
-            src = (if useFastWeak then applyPatch ./fast-weak.patch else id) src;
+            src =
+              applyPatch ./ghcjs-dot-label-with-sections-8.2.2.patch
+              (applyPatch ./ghcjs-prefer-package-modules-8.2.2.patch
+              ((if useFastWeak then applyPatch ./fast-weak.patch else id) src));
           } ''
             cp -r "$src" "$out"
             chmod -R +w "$out"
@@ -352,11 +355,6 @@ let overrideCabal = pkg: f: if pkg == null then null else haskellLib.overrideCab
         reflex-todomvc = self.callPackage (hackGet ./reflex-todomvc) {};
         reflex-aeson-orphans = self.callPackage (hackGet ./reflex-aeson-orphans) {};
         haven = doJailbreak (self.callHackage "haven" "0.2.0.0" {});
-
-          #src =
-          #  applyPatch ./ghcjs-dot-label-with-sections-8.2.2.patch
-          #  (applyPatch ./ghcjs-prefer-package-modules-8.2.2.patch
-          #  ((if useFastWeak then applyPatch ./fast-weak.patch else id) (hackGet ./ghcjs)));
 
         inherit (jsaddlePkgs) jsaddle-clib jsaddle-wkwebview jsaddle-webkit2gtk jsaddle-webkitgtk;
         jsaddle = doJailbreak jsaddlePkgs.jsaddle;
